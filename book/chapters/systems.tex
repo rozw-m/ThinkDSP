@@ -1,0 +1,637 @@
+\chapter{LTI systems}
+\label{systems}
+
+This chapter presents the theory of signals and systems, using
+musical acoustics as an example.  It explains an
+important application of the Convolution Theorem, characterization
+of linear, time-invariant systems (which I'll define soon).
+
+The code for this chapter is in {\tt chap10.ipynb}, which is in the
+repository for this book (see Section~\ref{code}).
+You can also view it at \url{http://tinyurl.com/thinkdsp10}.
+
+
+
+\section{Signals and systems}
+
+In the context of signal processing, a {\bf system} is an abstract
+representation of anything that takes a signal as input and produces
+a signal as output.
+
+For example, an electronic amplifier is a circuit that takes an
+electrical signal as input and produces a (louder) signal as output.
+
+As another example, when you listen to a musical performance, you
+can think of the room as a system that takes the sound of the
+performance at the location where it is generated and produces a
+somewhat different sound at the location where you hear it.
+
+A {\bf linear, time-invariant system}\footnote{My presentation here
+	follows \url{http://en.wikipedia.org/wiki/LTI_system_theory}.} is a
+system with these two properties:
+
+\begin{enumerate}
+	
+	\item Linearity: If you put two inputs into the system at the same
+	time, the result is the sum of their outputs.  Mathematically, if an
+	input $x_1$ produces output $y_1$ and another input $x_2$ produces
+	$y_2$, then $a x_1 + b x_2$ produces $a y_1 + b y_2$, where $a$ and
+	$b$ are scalars.
+	
+	\item Time invariance: The
+	effect of the system doesn't vary over time, or depend on the state
+	of the system.  So if inputs $x_1$ and $x_2$ differ by a shift in time,
+	their outputs $y_1$ and $y_2$ differ by the same shift, but are otherwise
+	identical.
+	
+\end{enumerate}
+
+Many physical systems have these properties, at least approximately.
+
+\begin{itemize}
+	
+	\item Circuits that contain only resistors, capacitors and inductors are
+	LTI, to the degree that the components behave like their idealized
+	models.
+	
+	\item Mechanical systems that contain springs, masses and
+	dashpots are also LTI, assuming linear springs (force proportional
+	to displacement) and dashpots (force proportional to velocity).
+	
+	\item Also, and most relevant to applications in this book,
+	the media that transmit sound (including air, water
+	and solids) are well-modeled by LTI systems.
+	
+\end{itemize}
+
+LTI systems are described by linear differential equations, and
+the solutions of those equations are complex sinusoids (see
+\url{http://en.wikipedia.org/wiki/Linear_differential_equation}).
+
+This result provides an algorithm for computing the effect of
+an LTI system on an input signal:
+
+\begin{enumerate}
+	
+	\item Express the signal as the sum of complex sinusoid components.
+	
+	\item For each input component, compute the corresponding output component.
+	
+	\item Add up the output components.
+	
+\end{enumerate}
+
+At this point, I hope this algorithm sounds familiar.  It's the
+same algorithm we used for convolution in Section~\ref{effconv}, and
+for differentiation in Section~\ref{effdiff}.  This process
+is called {\bf spectral decomposition} because we ``decompose''
+the input signal into its spectral components.
+
+In order to apply this process to an LTI system, we have to {\bf
+	characterize} the system by finding its effect on each component
+of the input signal.  For mechanical systems, it turns out that there
+is a simple and efficient way to do that: you kick it and record
+the output.
+
+Technically, the ``kick'' is called an {\bf impulse} and the
+output is called the {\bf impulse response}.  You might wonder
+how a single impulse can completely characterize a system.  You
+can see the answer by computing the DFT of an impulse.  Here's
+a wave array with an impulse at $t=0$:
+
+\begin{verbatim}
+	impulse = np.zeros(8)
+	impulse[0] = 1
+	impulse_spectrum = np.fft.fft(impulse)
+\end{verbatim}
+
+Here's the wave array:
+
+\begin{verbatim}
+	[ 1.  0.  0.  0.  0.  0.  0.  0.]
+\end{verbatim}
+
+And here's its spectrum:
+
+\begin{verbatim}
+	[ 1.+0.j  1.+0.j  1.+0.j  1.+0.j  1.+0.j  1.+0.j  1.+0.j  1.+0.j]
+\end{verbatim}
+
+The spectrum is all ones; that is, an impulse is the sum of components
+with equal magnitudes at all frequencies.  This
+spectrum should not be confused with white noise, which has the same
+{\em average} power at all frequencies, but varies around that
+average.
+
+When you test a system by inputting
+an impulse, you are testing the response of the
+system at all frequencies.  And you can test them all at the same
+time because the system is linear, so simultaneous tests don't
+interfere with each other.
+
+
+\section{Windows and filters}
+\label{winfilt}
+
+To show why this kind of system characterization works, I
+will start with a simple example: a 2-element moving average.
+We can think of this operation as a system that takes a signal
+as an input and produces a slightly smoother signal as an output.
+
+In this example we know what the window is, so we can compute
+the corresponding filter.  But that's not usually the case; in the
+next section we'll look at an example where we don't know the
+window or the filter ahead of time.
+
+\begin{figure}
+	% systems.py
+	\centerline{\includegraphics[height=2.5in]{figs/systems1.pdf}}
+	\caption{DFT of a 2-element moving average window.}
+	\label{fig.systems1}
+\end{figure}
+
+Here's a window that computes a
+2-element moving average (see Section~\ref{smoothing}):
+
+\begin{verbatim}
+	window_array = np.array([0.5, 0.5, 0, 0, 0, 0, 0, 0,])
+	window = thinkdsp.Wave(window_array, framerate=8)
+\end{verbatim}
+
+We can find the corresponding filter by computing the DFT of the
+window:
+
+\begin{verbatim}
+	filtr = window.make_spectrum(full=True)
+\end{verbatim}
+
+Figure~\ref{fig.systems1} shows the result.  The filter that corresponds to a
+moving average window is a low-pass filter with the approximate shape
+of a Gaussian curve.
+
+Now imagine that we did not know the window or the corresponding filter,
+and we wanted to characterize this system.  We would do that by
+inputting an impulse and measuring the impulse response.
+
+In this example, we can compute the impulse response by multiplying
+the spectrum of the impulse and the filter, and then converting the result
+from a spectrum to a wave:
+
+\begin{verbatim}
+	product = impulse_spectrum * filtr
+	filtered = product.make_wave()
+\end{verbatim}
+
+Since \verb"impulse_spectrum" is all ones, the product is
+identical to the filter, and the filtered wave is identical to the
+window.
+
+This example demonstrates two things:
+
+\begin{itemize}
+	
+	\item Because the spectrum of an impulse is all ones, the DFT
+	of the impulse response is identical to the filter that
+	characterizes the system.
+	
+	\item Therefore, the impulse response is identical to the
+	convolution window that characterizes the system.
+	
+\end{itemize}
+
+
+\section{Acoustic response}
+\label{response}
+
+To characterize the acoustic response of a room or open space, a
+simple way to generate an impulse is to pop a balloon or
+fire a gun.  A gunshot puts an impulse into
+the system; the sound you hear is the impulse response.
+
+\begin{figure}
+	% systems.py
+	\centerline{\includegraphics[height=2.5in]{figs/systems6.pdf}}
+	\caption{Waveform of a gunshot.}
+	\label{fig.systems6}
+\end{figure}
+
+As an example, I'll use a recording of a gunshot to characterize
+the room where the gun was fired, then use the impulse response
+to simulate the effect of that room on a violin recording.
+
+This example is in {\tt chap10.ipynb}, which is in the repository
+for this book; you can also view it, and listen to the examples,
+at \url{http://tinyurl.com/thinkdsp10}.
+
+Here's the gunshot:
+
+\begin{verbatim}
+	response = thinkdsp.read_wave('180960__kleeb__gunshots.wav')
+	response = response.segment(start=0.26, duration=5.0)
+	response.normalize()
+	response.plot()
+\end{verbatim}
+
+I select a segment starting at 0.26 seconds to remove the silence
+before the gunshot.  Figure~\ref{fig.systems6} (left) shows the
+waveform of the gunshot.  Next we compute the DFT of {\tt response}:
+
+\begin{verbatim}
+	transfer = response.make_spectrum()
+	transfer.plot()
+\end{verbatim}
+
+Figure~\ref{fig.systems6} (right) shows the result.  This spectrum
+encodes the response of the room; for each frequency, the spectrum
+contains a complex number that represents an amplitude multiplier and
+a phase shift.  This spectrum is called a {\bf transfer
+	function} because it contains information about how the system transfers
+the input to the output.
+
+Now we can simulate the effect this room would have on the sound
+of a violin.  Here is the violin recording we used in Section~\ref{violin}:
+
+\begin{verbatim}
+	violin = thinkdsp.read_wave('92002__jcveliz__violin-origional.wav')
+	violin.truncate(len(response))
+	violin.normalize()
+\end{verbatim}
+
+The violin and gunshot waves were sampled at the same framerate,
+44,100 Hz.  And coincidentally, the duration of both is about the
+same.  I trimmed the violin wave to the same length as the gunshot.
+
+Next I compute the DFT of the violin wave:
+
+\begin{verbatim}
+	spectrum = violin.make_spectrum()
+\end{verbatim}
+
+Now I know the magnitude and phase of each component in the
+input, and I know the transfer function of the system.  Their
+product is the DFT of the output, which we can use to compute the
+output wave:
+
+\begin{verbatim}
+	output = (spectrum * transfer).make_wave()
+	output.normalize()
+	output.plot()
+\end{verbatim}
+
+\begin{figure}
+	% systems.py
+	\centerline{\includegraphics[height=2.5in]{figs/systems7.pdf}}
+	\caption{The waveform of the violin recording before and after convolution.}
+	\label{fig.systems7}
+\end{figure}
+
+Figure~\ref{fig.systems7} shows the input (top) and output (bottom) of
+the system.  They are substantially different, and the differences are
+clearly audible.  Load {\tt chap10.ipynb} and listen to them.  One
+thing I find striking about this example is that you can get a sense
+of what the room was like; to me, it sounds like a long, narrow room
+with hard floors and ceilings.  That is, like a firing range.
+
+There's one thing I glossed over in this example that I'll mention
+in case it bothers anyone.  The violin recording I started with
+has already been transformed by one system: the room where it was
+recorded.  So what I really computed in my example is the sound
+of the violin after two transformations.  To properly simulate
+the sound of a violin in a different room, I should have characterized
+the room where the violin was recorded and applied the inverse
+of that transfer function first.
+
+
+\section{Systems and convolution}
+\label{sysconv}
+
+\begin{figure}
+	% systems.py
+	\centerline{\includegraphics[height=2.5in]{figs/systems8.pdf}}
+	\caption{Sum of a wave and a shifted, scaled copy.}
+	\label{fig.systems8}
+\end{figure}
+
+If you think the previous example is black magic,
+you are not alone.  I've been thinking about it for a while and it
+still makes my head hurt.
+
+In the previous section, I suggested one way to think about it:
+
+\begin{itemize}
+	
+	\item An impulse is made up of components with amplitude 1 at all
+	frequencies.
+	
+	\item The impulse response contains the sum of the responses of the
+	system to all of these components.
+	
+	\item The transfer function, which is the DFT of the impulse response,
+	encodes the effect of the system on each frequency component in the form
+	of an amplitude multiplier and a phase shift.
+	
+	\item For any input, we can compute the response of the system
+	by breaking the input into components, computing the response to
+	each component, and adding them up.
+	
+\end{itemize}
+
+But if you don't like that, there's another way to think about
+it altogether: convolution!  By the Convolution Theorem, multiplication
+in the frequency domain corresponds to convolution in the time
+domain.  In this example, the output of the system is the convolution
+of the input and the system response.
+
+Here are the keys to understanding why that works:
+
+\begin{itemize}
+	
+	\item You can think of the samples in the input wave as a sequence
+	of impulses with varying amplitude.
+	
+	\item Each impulse in the input yields a copy of the impulse response,
+	shifted in time (because the system is time-invariant) and scaled by
+	the amplitude of the input.
+	
+	\item The output is the sum of the shifted, scaled copies of the
+	impulse response.  The copies add up because the system is linear.
+	
+\end{itemize}
+
+Let's work our way up gradually: suppose that instead of firing one
+gun, we fire two: a big one with amplitude 1 at $t=0$ and a
+smaller one with amplitude 0.5 at $t=1$.
+
+We can compute the response of the system by adding up
+the original impulse response and a scaled, shifted copy of itself.
+Here's a function that makes a shifted, scaled copy of
+a wave:
+
+\begin{verbatim}
+	def shifted_scaled(wave, shift, factor):
+	res = wave.copy()
+	res.shift(shift)
+	res.scale(factor)
+	return res
+\end{verbatim}
+
+The parameter {\tt shift} is a time shift in seconds; {\tt factor}
+is a multiplicative factor.
+
+Here's how we use it to compute the response to a two-gun salute:
+
+\begin{verbatim}
+	shift = 1
+	factor = 0.5
+	gun2 = response + shifted_scaled(response, shift, factor)
+\end{verbatim}
+
+Figure~\ref{fig.systems8} shows the result.  You can hear what
+it sounds like in {\tt chap10.ipynb}.  Not surprisingly, it
+sounds like two gunshots, the first one louder than the second.
+
+Now suppose instead of two guns, you add up 100 guns fired at a rate
+of 441 shots per second.
+This loop computes the result:
+
+\begin{verbatim}
+	dt = 1 / 441
+	total = 0
+	for k in range(100):
+	total += shifted_scaled(response, k*dt, 1.0)
+\end{verbatim}
+
+With 441 shots per second,
+so you don't hear the individual shots.  Instead, it sounds
+like a periodic signal at 441 Hz.  If you play this example, it
+sounds like a car horn in a garage.
+
+And that brings us to a key insight: you can think of any wave as a
+series of samples, where each sample is an impulse with a different
+amplitude.
+
+As a example, I'll generate a sawtooth signal at 441 Hz:
+
+\begin{verbatim}
+	signal = thinkdsp.SawtoothSignal(freq=441)
+	wave = signal.make_wave(duration=0.1,
+	framerate=response.framerate)
+\end{verbatim}
+
+Now I'll loop through the series of impulses that make up the
+sawtooth, and add up the impulse responses:
+
+\begin{verbatim}
+	total = 0
+	for t, y in zip(wave.ts, wave.ys):
+	total += shifted_scaled(response, t, y)
+\end{verbatim}
+
+The result is what it would sound like to play a sawtooth wave in a
+firing range.  Again, you can listen to it in {\tt chap10.ipynb}.
+
+\begin{figure}
+	\centerline{\includegraphics[height=1.2in]{figs/diagram2.pdf}}
+	\caption{Diagram of the sum of scaled and shifted copies of $g$.}
+	\label{fig.convolution}
+\end{figure}
+
+Figure~\ref{fig.convolution} shows a diagram of this computation,
+where $f$ is the sawtooth, $g$ is the impulse response, and $h$
+is the sum of the shifted, scaled copies of $g$.
+
+For the example shown:
+
+\[ h[2] = f[0]g[2] + f[1]g[1] + f[2]g[0]  \]
+
+And more generally,
+
+\[ h[n] = \sum_{m=0}^{N-1} f[m] g[n-m]  \]
+
+You might recognize this equation from Section~\ref{convolution}.  It
+is the convolution of $f$ and $g$.  This shows that if the input is $f$
+and the impulse response of the system is $g$, the output is the
+convolution of $f$ and $g$.
+
+In summary, there are two ways to think about the effect of a system
+on a signal:
+
+\begin{enumerate}
+	
+	\item The input is a sequence of impulses, so the output is the sum of
+	scaled, shifted copies of the impulse response; that sum is the
+	convolution of the input and the impulse response.
+	
+	\item The DFT of the impulse response is a transfer function that
+	encodes the effect of the system on each frequency component as a
+	magnitude and phase offset.  The DFT of the input encodes the
+	magnitude and phase offset of the frequency components it contains.
+	Multiplying the DFT of the input by the transfer function yields
+	the DFT of the output.
+	
+\end{enumerate}
+
+The equivalence of these descriptions should not be a surprise;
+it is basically a statement of the Convolution Theorem:
+convolution of $f$ and $g$ in the time
+domain corresponds to multiplication in the frequency domain.
+And if you wondered why convolution is defined as it is, which
+seemed backwards when we talked about smoothing and difference
+windows, now you know the reason: the definition of convolution
+appears naturally in the response of an LTI system to a signal.
+
+
+\section{Proof of the Convolution Theorem}
+
+Well, I've put it off long enough.  It's time to prove the Convolution
+Theorem (CT), which states:
+
+\[ \DFT(f \conv g) = \DFT(f) \DFT(g) \]
+
+where $f$ and $g$ are vectors with the same length, $N$.
+
+I'll proceed in two steps:
+
+\begin{enumerate}
+	
+	\item I'll show that in the special case where $f$ is a complex
+	exponential, convolution with $g$ has the effect of multiplying
+	$f$ by a scalar.
+	
+	\item In the more general case where $f$ is not a complex exponential,
+	we can use the DFT to express it as a sum of exponential components,
+	compute the convolution of each component (by multiplication) and
+	then add up the results.
+	
+\end{enumerate}
+
+Together these steps prove the Convolution Theorem.  But first, let's
+assemble the pieces we'll need.  The DFT of $g$, which I'll call $G$
+is:
+%
+\[ DFT(g)[k] = G[k] = \sum_n g[n] \exp(-2 \pi i n k / N) \]
+%
+where $k$ is an index of frequency from
+0 to $N-1$ and $n$ is an index of time from 0 to $N-1$.
+The result is a vector of $N$ complex numbers.
+
+The inverse DFT of $F$, which I'll call $f$, is:
+%
+\[ IDFT(F)[n] = f[n] = \sum_k F[k] \exp(2 \pi i n k / N) \]
+%
+Here's the definition of convolution:
+%
+\[ (f \conv g)[n] = \sum_m f[m] g[n-m] \]
+%
+where $m$ is another index of time from 0 to $N-1$.
+Convolution is commutative, so I could equivalently write:
+%
+\[ (f \conv g)[n] = \sum_m f[n-m] g[m] \]
+%
+Now let's consider the special case where $f$ is a complex
+exponential with frequency $k$, which I'll call $e_k$:
+%
+\[ f[n] = e_k[n] = \exp(2 \pi i n k / N) \]
+%
+where $k$ is an index of frequency and $n$ is an index of time.
+
+Plugging $e_k$ into the second definition of convolution yields
+%
+\[ (e_k \conv g)[n] = \sum_m \exp(2 \pi i (n-m) k / N) g[m]  \]
+%
+We can split the first term into a product:
+%
+\[ (e_k \conv g)[n] = \sum_m \exp(2 \pi i n k / N) \exp(-2 \pi i m k / N) g[m]  \]
+%
+The first half does not depend on $m$, so we can pull it out of the
+summation:
+%
+\[ (e_k \conv g)[n] = \exp(2 \pi i n k / N) \sum_m \exp(-2 \pi i m k / N) g[m]  \]
+%
+Now we recognize that the first term is $e_k$, and the summation is
+$G[k]$ (using $m$ as the index of time).  So we can write:
+%
+\[ (e_k \conv g)[n] = e_k[n] G[k] \]
+%
+which shows that for each complex exponential, $e_k$, convolution
+with $g$ has the effect of multiplying $e_k$ by $G[k]$.  In mathematical
+terms, each $e_k$ is an eigenvector of this operation, and
+$G[k]$ is the corresponding eigenvalue (see Section~\ref{effdiff}).
+
+Now for the second part of the proof.  If the input signal, $f$, doesn't
+happen to be a complex exponential, we can express it as a sum of
+complex exponentials by computing its DFT, $F$.
+For each value of $k$ from 0 to $N-1$, $F[k]$ is the complex
+magnitude of the component with frequency $k$.
+
+Each input component is a complex exponential with magnitude
+$F[k]$, so each output component is a complex
+exponential with magnitude $F[k] G[k]$, based on the first part of
+the proof.
+
+Because the system is linear, the output is just the sum of the
+output components:
+%
+\[ (f \conv g)[n] = \sum_k F[k] G[k] e_k[n] \]
+%
+Plugging in the definition of $e_k$ yields
+%
+\[ (f \conv g)[n] = \sum_k F[k] G[k] \exp(2 \pi i n k / N) \]
+%
+The right hand side is the inverse DFT of the product $F G$.  Thus:
+%
+\[ (f \conv g) = \IDFT( F G ) \]
+%
+Substituting $F = \DFT(f)$ and $G = \DFT(g)$:
+%
+\[ (f \conv g) = \IDFT( \DFT(f) \DFT(g) ) \]
+%
+Finally, taking the DFT of both sides yields the Convolution Theorem:
+%
+\[ \DFT(f \conv g) = \DFT(f) \DFT(g) \]
+%
+QED
+
+
+\section{Exercises}
+
+Solutions to these exercises are in {\tt chap10soln.ipynb}.
+
+\begin{exercise}
+	In Section~\ref{sysconv} I describe convolution as the sum of shifted,
+	scaled copies of a signal.  Strictly speaking, this operation is
+	{\em linear} convolution, which does not assume that the signal
+	is periodic.
+	
+	But in Section~\ref{response}, when we multiply the
+	DFT of the signal by the transfer function, that operation corresponds
+	to {\em circular} convolution, which assumes that the signal is
+	periodic.  As a result, you might notice that the output contains
+	an extra note at the beginning, which wraps around from the end.
+	
+	Fortunately, there is a standard solution to this problem.  If you
+	add enough zeros to the end of the signal before computing the DFT,
+	you can avoid wrap-around and compute a linear convolution.
+	
+	Modify the example in {\tt chap10.ipynb} and confirm that zero-padding
+	eliminates the extra note at the beginning of the output.
+\end{exercise}
+
+
+\begin{exercise}
+	The Open AIR library provides a ``centralized... on-line resource for
+	anyone interested in auralization and acoustical impulse response
+	data'' (\url{http://www.openairlib.net}).  Browse their collection
+	of impulse response data and download one that sounds interesting.
+	Find a short recording that has the same sample rate as the impulse
+	response you downloaded.
+	
+	Simulate the sound of your recording in the space where the impulse
+	response was measured, computed two way: by convolving the recording
+	with the impulse response and by computing the filter that corresponds
+	to the impulse response and multiplying by the DFT of the recording.
+\end{exercise}
+
+%TODO: one more?
+%\begin{exercise}
+%\end{exercise}

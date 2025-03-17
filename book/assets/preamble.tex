@@ -1,0 +1,51 @@
+\usepackage[width=5.5in,height=8.5in,
+hmarginratio=3:2,vmarginratio=1:1]{geometry}
+
+% for some of these packages, you might have to install
+% texlive-latex-extra (in Ubuntu)
+
+%\usepackage[T1]{fontenc}
+%\usepackage{textcomp}
+%\usepackage{mathpazo}
+%\usepackage{pslatex}
+
+\usepackage{url}
+\usepackage{hyperref}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\usepackage{subfig}
+\usepackage{unicode-math}
+\usepackage{amsmath}
+\usepackage{amsthm}
+%\usepackage{amssymb}
+\usepackage{makeidx}
+\usepackage{setspace}
+\usepackage{hevea}
+\usepackage{upquote}
+
+% include this so we can compile without hyperref
+% https://tex.stackexchange.com/questions/44088/when-do-i-need-to-invoke-phantomsection
+\providecommand\phantomsection{}
+
+\title{Think DSP}
+\author{Allen B. Downey}
+
+\newcommand{\thetitle}{Think DSP}
+\newcommand{\thesubtitle}{Digital Signal Processing in Python}
+\newcommand{\theversion}{1.1.4}
+
+% these styles get translated in CSS for the HTML version
+\newstyle{a:link}{color:black;}
+\newstyle{p+p}{margin-top:1em;margin-bottom:1em}
+\newstyle{img}{border:0px}
+
+% change the arrows in the HTML version
+\setlinkstext
+{\imgsrc[alt="Previous"]{back.png}}
+{\imgsrc[alt="Up"]{up.png}}
+{\imgsrc[alt="Next"]{next.png}}
+
+\makeindex
+
+\newif\ifplastex
+\plastexfalse

@@ -1,0 +1,570 @@
+\chapter{Sounds and signals}
+\label{sounds}
+
+A {\bf signal} represents a quantity that varies in time.  That
+definition is pretty abstract, so let's start with a concrete example:
+sound.  Sound is variation in air pressure.  A sound signal represents
+variations in air pressure over time.
+
+A microphone is a device that measures these variations and generates
+an electrical signal that represents sound.  A speaker is a device
+that takes an electrical signal and produces sound.
+Microphones and speakers are called {\bf transducers} because they
+transduce, or convert, signals from one form to another.
+
+This book is about signal processing, which includes processes for
+synthesizing, transforming, and analyzing signals.  I will focus on
+sound signals, but the same methods apply to electronic signals,
+mechanical vibration, and signals in many other domains.
+
+They also apply to signals that vary in space rather than time, like
+elevation along a hiking trail.  And they apply to signals in more
+than one dimension, like an image, which you can think of as a signal
+that varies in two-dimensional space.  Or a movie, which is
+a signal that varies in two-dimensional space {\it and} time.
+
+But we start with simple one-dimensional sound.
+
+The code for this chapter is in {\tt chap01.ipynb}, which is in the
+repository for this book (see Section~\ref{code}).
+You can also view it at \url{http://tinyurl.com/thinkdsp01}.
+
+
+\section{Periodic signals}
+\label{violin}
+
+\begin{figure}
+	% sounds.py
+	\centerline{\includegraphics[height=2.5in]{figs/sounds1.pdf}}
+	\caption{Segment from a recording of a bell.}
+	\label{fig.sounds1}
+\end{figure}
+
+We'll start with {\bf periodic signals}, which are signals that
+repeat themselves after some period of time.  For example, if you
+strike a bell, it vibrates and generates sound.  If you record
+that sound and plot the transduced signal, it looks like
+Figure~\ref{fig.sounds1}.
+
+This signal resembles a {\bf sinusoid}, which means it has the same
+shape as the trigonometric sine function.
+
+You can see that this signal is periodic.  I chose the duration
+to show three full repetitions, also known as {\bf cycles}.
+The duration of each cycle, called the {\bf period}, is about 2.3 ms.
+
+The {\bf frequency} of a signal is the number of cycles
+per second, which is the inverse of the period.
+The units of frequency are cycles per second, or {\bf Hertz},
+abbreviated ``Hz''.  (Strictly speaking, the number of cycles is
+a dimensionless number, so a Hertz is really a ``per second'').
+
+The frequency of this signal is about 439 Hz, slightly lower than 440
+Hz, which is the standard tuning pitch for orchestral music.  The
+musical name of this note is A, or more specifically, A4.  If you are
+not familiar with ``scientific pitch notation'', the numerical suffix
+indicates which octave the note is in.  A4 is the A above middle C.
+A5 is one octave higher.  See
+\url{http://en.wikipedia.org/wiki/Scientific_pitch_notation}.
+
+\begin{figure}
+	% sounds.py
+	\centerline{\includegraphics[height=2.5in]{figs/sounds2.pdf}}
+	\caption{Segment from a recording of a violin.}
+	\label{fig.sounds2}
+\end{figure}
+
+A tuning fork generates a sinusoid because the vibration of the tines
+is a form of simple harmonic motion.  Most musical instruments
+produce periodic signals, but the shape of these signals is not
+sinusoidal.  For example, Figure~\ref{fig.sounds2} shows a segment
+from a recording of a violin playing
+Boccherini's String Quintet No. 5 in E, 3rd
+movement.
+
+%\footnote{The recording is from
+	%  \url{http://www.freesound.org/people/jcveliz/sounds/92002/}.
+	%I identified the piece using \url{http://www.musipedia.org}.}
+% Parson's code: DUUDDUURDR
+
+Again we can see that the signal is periodic, but the shape of the
+signal is more complex.  The shape of a periodic signal is called
+the {\bf waveform}.  Most musical instruments produce waveforms more
+complex than a sinusoid.  The shape of the waveform determines the
+musical {\bf timbre}, which is our perception of the quality of the
+sound.  People usually perceive complex waveforms as rich, warm and
+more interesting than sinusoids.
+
+
+\section{Spectral decomposition}
+
+\begin{figure}
+	% sounds.py
+	\centerline{\includegraphics[height=2.5in]{figs/sounds3.pdf}}
+	\caption{Spectrum of a segment from the violin recording.}
+	\label{fig.sounds3}
+\end{figure}
+
+The most important topic in this book is {\bf spectral decomposition},
+which is the idea that any signal can be expressed as the sum of
+sinusoids with different frequencies.
+
+The most important mathematical idea in this book is the {\bf discrete
+	Fourier transform}, or {\bf DFT}, which takes a signal and produces
+its {\bf spectrum}.  The spectrum is the set of sinusoids that add up to
+produce the signal.
+
+And the most important algorithm in this book is the {\bf Fast
+	Fourier transform}, or {\bf FFT}, which is an efficient way to
+compute the DFT.
+
+For example, Figure~\ref{fig.sounds3} shows the spectrum of the violin
+recording in Figure~\ref{fig.sounds2}.  The x-axis is the range of
+frequencies that make up the signal.  The y-axis shows the strength
+or {\bf amplitude} of each frequency component.
+
+The lowest frequency component is called the {\bf fundamental
+	frequency}.  The fundamental frequency of this signal is near 440 Hz
+(actually a little lower, or ``flat'').
+
+In this signal the fundamental frequency has the largest amplitude,
+so it is also the {\bf dominant frequency}.
+Normally the perceived pitch of a sound is determined by the
+fundamental frequency, even if it is not dominant.
+
+The other spikes in the spectrum are at frequencies 880, 1320, 1760, and
+2200, which are integer multiples of the fundamental.
+These components are called {\bf harmonics} because they are
+musically harmonious with the fundamental:
+
+\begin{itemize}
+	
+	\item 880 is the frequency of A5, one octave higher than the fundamental.
+	An {\bf octave} is a doubling in frequency.
+	
+	\item 1320 is approximately E6, which is a perfect fifth above A5.
+	If you are not familiar with musical intervals like "perfect fifth'', see
+	\url{https://en.wikipedia.org/wiki/Interval_(music)}.
+	
+	\item 1760 is A6, two octaves above the fundamental.
+	
+	\item 2200 is approximately C$\sharp$7, which is a major third
+	above A6.
+	
+\end{itemize}
+
+These harmonics make up the notes of an A major
+chord, although not all in the same octave.  Some of them are only
+approximate because the notes that make up Western music have been
+adjusted for {\bf equal temperament} (see
+\url{http://en.wikipedia.org/wiki/Equal_temperament}).
+
+Given the harmonics and their amplitudes, you can reconstruct the
+signal by adding up sinusoids.
+Next we'll see how.
+
+
+\section{Signals}
+
+I wrote a Python module called {\tt thinkdsp.py} that contains classes
+and functions for working with signals and spectrums\footnote{The
+	plural of ``spectrum'' is often written ``spectra'', but I prefer
+	to use standard English plurals.  If you are familiar with ``spectra'',
+	I hope my choice doesn't sound too strange.}.  You
+will find it in the repository for this book (see Section~\ref{code}).
+
+To represent signals, {\tt thinkdsp} provides a class called
+{\tt Signal}, which is the parent class for several signal types,
+including {\tt Sinusoid}, which represents both sine and cosine
+signals.
+
+{\tt thinkdsp} provides functions to create sine and cosine signals:
+
+\begin{verbatim}
+	cos_sig = thinkdsp.CosSignal(freq=440, amp=1.0, offset=0)
+	sin_sig = thinkdsp.SinSignal(freq=880, amp=0.5, offset=0)
+\end{verbatim}
+
+{\tt freq} is frequency in Hz.  {\tt amp} is amplitude in unspecified
+units where 1.0 is defined as the largest amplitude we can record or
+play back.
+
+{\tt offset} is a {\bf phase offset} in radians.  Phase offset
+determines where in the period the signal starts.  For example, a
+sine signal with {\tt offset=0} starts at $\sin 0$, which is 0.
+With {\tt offset=pi/2} it starts at $\sin \pi/2$, which is 1.
+
+Signals have an \verb"__add__" method, so you can use the {\tt +}
+operator to add them:
+
+\begin{verbatim}
+	mix = sin_sig + cos_sig
+\end{verbatim}
+
+The result is a {\tt SumSignal}, which represents the sum of two
+or more signals.
+
+A Signal is basically a Python representation of a mathematical
+function.  Most signals are defined for all values of {\tt t},
+from negative infinity to infinity.
+
+You can't do much with a Signal until you evaluate it.  In this
+context, ``evaluate'' means taking a sequence of points in time, {\tt
+	ts}, and computing the corresponding values of the signal, {\tt ys}.
+I represent {\tt ts} and {\tt ys} using NumPy arrays and encapsulate
+them in an object called a Wave.
+
+A Wave represents a signal evaluated at a sequence of points in
+time.  Each point in time is called a {\bf frame} (a term borrowed
+from movies and video).  The measurement itself is called a
+{\bf sample}, although ``frame'' and ``sample'' are sometimes
+used interchangeably.
+
+{\tt Signal} provides \verb"make_wave", which returns a new
+Wave object:
+
+\begin{verbatim}
+	wave = mix.make_wave(duration=0.5, start=0, framerate=11025)
+\end{verbatim}
+
+{\tt duration} is the length of the Wave in seconds.  {\tt start} is
+the start time, also in seconds.  {\tt framerate} is the (integer)
+number of frames per second, which is also the number of samples
+per second.
+
+11,025 frames per second is one of several framerates commonly used in
+audio file formats, including Waveform Audio File (WAV) and mp3.
+
+This example evaluates the signal from {\tt t=0} to {\tt t=0.5} at
+5,513 equally-spaced frames (because 5,513 is half of 11,025).
+The time between frames, or {\bf timestep}, is {\tt 1/11025} seconds, about
+91 $\mu$s.
+
+{\tt Wave} provides a {\tt plot} method that uses {\tt pyplot}.
+You can plot the wave like this:
+
+\begin{verbatim}
+	wave.plot()
+	pyplot.show()
+\end{verbatim}
+
+{\tt pyplot} is part of {\tt matplotlib}; it is included in many
+Python distributions, or you might have to install it.
+
+\begin{figure}
+	% sounds4.py
+	\centerline{\includegraphics[height=2.5in]{figs/sounds4.pdf}}
+	\caption{Segment from a mixture of two sinusoid signals.}
+	\label{fig.sounds4}
+\end{figure}
+
+At {\tt freq=440} there are 220 periods in 0.5 seconds, so this plot
+would look like a solid block of color.  To zoom in on a small number
+of periods, we can use {\tt segment}, which copies a segment of a Wave
+and returns a new wave:
+
+\begin{verbatim}
+	period = mix.period
+	segment = wave.segment(start=0, duration=period*3)
+\end{verbatim}
+
+{\tt period} is a property of a Signal; it returns the period in seconds.
+
+{\tt start} and {\tt duration} are in seconds.  This example copies
+the first three periods from {\tt mix}.  The result is a Wave object.
+
+If we plot {\tt segment}, it looks like Figure~\ref{fig.sounds4}.
+This signal contains two frequency components, so it is more
+complicated than the signal from the tuning fork, but less complicated
+than the violin.
+
+
+\section{Reading and writing Waves}
+
+{\tt thinkdsp} provides \verb"read_wave", which reads a WAV
+file and returns a Wave:
+
+\begin{verbatim}
+	violin_wave = thinkdsp.read_wave('input.wav')
+\end{verbatim}
+
+And {\tt Wave} provides {\tt write}, which writes a WAV file:
+
+\begin{verbatim}
+	wave.write(filename='output.wav')
+\end{verbatim}
+
+You can listen to the Wave with any media player that plays WAV
+files.  On UNIX systems, I use {\tt aplay}, which is simple, robust,
+and included in many Linux distributions.
+
+{\tt thinkdsp} also provides \verb"play_wave", which runs
+the media player as a subprocess:
+
+\begin{verbatim}
+	thinkdsp.play_wave(filename='output.wav', player='aplay')
+\end{verbatim}
+
+It uses {\tt aplay} by default, but you can provide the
+name of another player.
+
+
+\section{Spectrums}
+\label{spectrums}
+
+{\tt Wave} provides \verb"make_spectrum", which returns a
+{\tt Spectrum}:
+
+\begin{verbatim}
+	spectrum = wave.make_spectrum()
+\end{verbatim}
+
+And {\tt Spectrum} provides {\tt plot}:
+
+\begin{verbatim}
+	spectrum.plot()
+\end{verbatim}
+
+%{\tt thinkplot} is a module I wrote to provide wrappers around some of the functions in {\tt pyplot}.  It is included in the Git repository for this book (see Section~\ref{code}).
+
+{\tt Spectrum} provides three methods that modify the spectrum:
+
+\begin{itemize}
+	
+	\item \verb"low_pass" applies a low-pass filter, which means that
+	components above a given cutoff frequency are attenuated (that is,
+	reduced in magnitude) by a factor.
+	
+	\item \verb"high_pass" applies a high-pass filter, which means that
+	it attenuates components below the cutoff.
+	
+	\item \verb"band_stop" attenuates components in the band of
+	frequencies between two cutoffs.
+	
+\end{itemize}
+
+This example attenuates all frequencies above 600 by 99\%:
+
+\begin{verbatim}
+	spectrum.low_pass(cutoff=600, factor=0.01)
+\end{verbatim}
+
+A low pass filter removes bright, high-frequency sounds, so
+the result sounds muffled and darker.  To hear what it sounds
+like, you can convert the Spectrum back to a Wave, and then play it.
+
+\begin{verbatim}
+	wave = spectrum.make_wave()
+	wave.play('temp.wav')
+\end{verbatim}
+
+The {\tt play} method writes the wave to a file and then plays it.
+If you use Jupyter notebooks, you can use \verb"make_audio", which
+makes an Audio widget that plays the sound.
+
+
+\section{Wave objects}
+
+\begin{figure}
+	% http://yuml.me/edit/5294b377
+	% pdftops -eps uml_diagram1.pdf
+	\centerline{\includegraphics[width=3.5in]{figs/uml_diagram1.pdf}}
+	\caption{Relationships among the classes in {\tt thinkdsp}.}
+	\label{fig.diagram1}
+\end{figure}
+
+There is nothing very complicated in {\tt thinkdsp.py}.  Most
+of the functions it provides are thin wrappers around functions
+from NumPy and SciPy.
+
+The primary classes in {\tt thinkdsp} are Signal, Wave, and Spectrum.
+Given a Signal, you can make a Wave.  Given a Wave, you can
+make a Spectrum, and vice versa.  These relationships are shown
+in Figure~\ref{fig.diagram1}.
+
+A Wave object contains three attributes: {\tt ys} is a NumPy array
+that contains the values in the signal; {\tt ts} is an array of the
+times where the signal was evaluated or sampled; and {\tt
+	framerate} is the number of samples per unit of time.  The
+unit of time is usually seconds, but it doesn't have to be.  In
+one of my examples, it's days.
+
+Wave also provides three read-only properties: {\tt start},
+{\tt end}, and {\tt duration}.  If you modify {\tt ts}, these
+properties change accordingly.
+
+To modify a wave, you can access the {\tt ts} and {\tt ys} directly.
+For example:
+
+\begin{verbatim}
+	wave.ys *= 2
+	wave.ts += 1
+\end{verbatim}
+
+The first line scales the wave by a factor of 2, making
+it louder.  The second line shifts the wave in time, making it
+start 1 second later.
+
+But Wave provides methods that perform many common operations.
+For example, the same two transformations could be written:
+
+\begin{verbatim}
+	wave.scale(2)
+	wave.shift(1)
+\end{verbatim}
+
+You can read the documentation of these methods and others at
+\url{http://greenteapress.com/thinkdsp.html}.
+
+
+\section{Signal objects}
+\label{sigobs}
+
+Signal is a parent class that provides functions common to all
+kinds of signals, like \verb"make_wave".  Child classes inherit
+these methods and provide {\tt evaluate}, which evaluates the
+signal at a given sequence of times.
+
+For example, Sinusoid is a child class of Signal, with this
+definition:
+
+\begin{verbatim}
+	class Sinusoid(Signal):
+	
+	def __init__(self, freq=440, amp=1.0, offset=0, func=np.sin):
+	Signal.__init__(self)
+	self.freq = freq
+	self.amp = amp
+	self.offset = offset
+	self.func = func
+\end{verbatim}
+
+The parameters of \verb"__init__" are:
+
+\begin{itemize}
+	
+	\item {\tt freq}: frequency in cycles per second, or Hz.
+	
+	\item {\tt amp}: amplitude.  The units of amplitude are arbitrary,
+	usually chosen so 1.0 corresponds to the maximum input from a
+	microphone or maximum output to a speaker.
+	
+	\item {\tt offset}: indicates where in its period the signal starts;
+	{\tt offset} is in units of radians, for reasons I explain below.
+	
+	\item {\tt func}: a Python function used
+	to evaluate the signal at a particular point in time.  It is
+	usually either {\tt np.sin} or {\tt np.cos}, yielding a sine or
+	cosine signal.
+	
+\end{itemize}
+
+Like many init methods, this one just tucks the parameters away for
+future use.
+
+Signal provides \verb"make_wave", which looks like
+this:
+
+\begin{verbatim}
+	def make_wave(self, duration=1, start=0, framerate=11025):
+	n = round(duration * framerate)
+	ts = start + np.arange(n) / framerate
+	ys = self.evaluate(ts)
+	return Wave(ys, ts, framerate=framerate)
+\end{verbatim}
+
+{\tt start} and {\tt duration} are the start time and duration
+in seconds.  {\tt framerate} is the number of frames (samples)
+per second.
+
+{\tt n} is the number of samples, and {\tt ts} is a NumPy array
+of sample times.
+
+To compute the {\tt ys}, \verb"make_wave" invokes {\tt evaluate},
+which is provided by {\tt Sinusoid}:
+
+\begin{verbatim}
+	def evaluate(self, ts):
+	phases = PI2 * self.freq * ts + self.offset
+	ys = self.amp * self.func(phases)
+	return ys
+\end{verbatim}
+
+Let's unwind this function one step at time:
+
+\begin{enumerate}
+	
+	\item {\tt self.freq} is frequency in cycles per second, and each
+	element of {\tt ts} is a time in seconds, so their product is the
+	number of cycles since the start time.
+	
+	\item {\tt PI2} is a constant that stores $2 \pi$.  Multiplying by
+	{\tt PI2} converts from cycles to {\bf phase}.  You can think of
+	phase as ``cycles since the start time'' expressed in radians.  Each
+	cycle is $2 \pi$ radians.
+	
+	\item {\tt self.offset} is the phase when $t$ is {\tt ts[0]}.
+	It has the effect of shifting the signal left or right in time.
+	
+	\item If {\tt self.func} is {\tt np.sin} or {\tt np.cos}, the result is a
+	value between $-1$ and $+1$.
+	
+	\item Multiplying by {\tt self.amp} yields a signal that ranges from
+	{\tt -self.amp} to {\tt +self.amp}.
+	
+\end{enumerate}
+
+In math notation, {\tt evaluate} is written like this:
+%
+\[ y = A \cos (2 \pi f t + \phi_0) \]
+%
+where $A$ is amplitude, $f$ is frequency, $t$ is time, and $\phi_0$
+is the phase offset.  It may seem like I wrote a lot of code
+to evaluate one simple expression, but as we'll see, this code
+provides a framework for dealing with all kinds of signals, not
+just sinusoids.
+
+
+\section{Exercises}
+
+Before you begin these exercises, you should download the code
+for this book, following the instructions in Section~\ref{code}.
+
+Solutions to these exercises are in {\tt chap01soln.ipynb}.
+
+\begin{exercise}
+	If you have Jupyter, load {\tt chap01.ipynb}, read through it, and run
+	the examples.  You can also view this notebook at
+	\url{http://tinyurl.com/thinkdsp01}.
+\end{exercise}
+
+
+\begin{exercise}
+	Go to \url{http://freesound.org} and download a sound sample that
+	includes music, speech, or other sounds that have a well-defined pitch.
+	Select a roughly half-second segment where the pitch is
+	constant.  Compute and plot the spectrum of the segment you selected.
+	What connection can you make between the timbre of the sound and the
+	harmonic structure you see in the spectrum?
+	
+	Use \verb"high_pass", \verb"low_pass", and \verb"band_stop" to
+	filter out some of the harmonics.  Then convert the spectrum back
+	to a wave and listen to it.  How does the sound relate to the
+	changes you made in the spectrum?
+\end{exercise}
+
+
+\begin{exercise}
+	Synthesize a compound signal by creating SinSignal and CosSignal
+	objects and adding them up.  Evaluate the signal to get a Wave,
+	and listen to it.  Compute its Spectrum and plot it.
+	What happens if you add frequency
+	components that are not multiples of the fundamental?
+\end{exercise}
+
+
+\begin{exercise}
+	Write a function called {\tt stretch} that takes a Wave and a stretch
+	factor and speeds up or slows down the wave by modifying {\tt ts} and
+	{\tt framerate}.  Hint: it should only take two lines of code.
+\end{exercise}

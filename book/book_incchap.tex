@@ -1,0 +1,214 @@
+% LaTeX source for ``Think DSP: Digital Signal Processing for Programmers''
+% Copyright 2014  Allen B. Downey.
+
+% License: Creative Commons
+% Attribution-NonCommercial-ShareAlike 4.0 International
+% http://creativecommons.org/licenses/by-nc-sa/4.0/
+%
+\DocumentMetadata{
+	lang        = en-gb,
+	pdfversion  = 2.0,
+	pdfstandard = ua-2,
+	pdfstandard = a-4f,
+	testphase   = latest 
+}
+
+\documentclass[12pt]{book}
+\include{assets/preamble}
+
+\begin{document}
+
+\frontmatter
+
+\ifplastex
+    \usepackage{localdef}
+    \maketitle
+
+\newcount\anchorcnt
+\newcommand*{\Anchor}[1]{%
+  \@bsphack%
+    \Hy@GlobalStepCount\anchorcnt%
+    \edef\@currentHref{anchor.\the\anchorcnt}%
+    \Hy@raisedlink{\hyper@anchorstart{\@currentHref}\hyper@anchorend}%
+    \M@gettitle{}\label{#1}%
+    \@esphack%
+}
+\else
+
+\newtheoremstyle{exercise}% name of the style to be used
+  {\topsep}% measure of space to leave above the theorem. E.g.: 3pt
+  {\topsep}% measure of space to leave below the theorem. E.g.: 3pt
+  {}% name of font to use in the body of the theorem
+  {}% measure of space to indent
+  {\bfseries}% name of head font
+  {}% punctuation between head and body
+  { }% space after theorem head; " " = normal interword space
+  {}% Manually specify head
+
+\theoremstyle{exercise}
+\newtheorem{exercise}{Exercise}[chapter]
+
+\input{latexonly}
+
+\begin{latexonly}
+
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\blankpage}{\thispagestyle{empty} \quad \newpage}
+
+% TITLE PAGES FOR LATEX VERSION
+
+%-half title--------------------------------------------------
+\thispagestyle{empty}
+
+\begin{flushright}
+\vspace*{2.0in}
+
+\begin{spacing}{3}
+{\huge \thetitle}\\
+{\Large \thesubtitle}
+\end{spacing}
+
+\vspace{0.25in}
+
+Version \theversion
+
+\vfill
+
+\end{flushright}
+
+%--verso------------------------------------------------------
+
+\blankpage
+\blankpage
+
+%--title page--------------------------------------------------
+\pagebreak
+\thispagestyle{empty}
+
+\begin{flushright}
+\vspace*{2.0in}
+
+\begin{spacing}{3}
+{\huge \thetitle}\\
+{\Large \thesubtitle}
+\end{spacing}
+
+\vspace{0.25in}
+
+Version \theversion
+
+\vspace{1in}
+
+
+{\Large
+Allen B. Downey\\
+}
+
+
+\vspace{0.5in}
+
+{\Large Green Tea Press}
+
+{\small Needham, Massachusetts}
+
+\vfill
+
+\end{flushright}
+
+
+%--copyright--------------------------------------------------
+\pagebreak
+\thispagestyle{empty}
+
+Copyright \copyright ~2014 Allen B. Downey.
+
+
+\vspace{0.2in}
+
+\begin{flushleft}
+Green Tea Press       \\
+9 Washburn Ave \\
+Needham MA 02492
+\end{flushleft}
+
+Permission is granted to copy, distribute, and/or modify this document
+under the terms of the Creative Commons
+Attribution-NonCommercial-ShareAlike 4.0 International License, which
+is available at
+\url{http://creativecommons.org/licenses/by-nc-sa/4.0/}.
+
+
+The \LaTeX\ source for this book is available from
+\url{http://think-dsp.com}.
+
+\vspace{0.2in}
+
+\end{latexonly}
+
+
+% HTMLONLY
+
+\begin{htmlonly}
+
+% TITLE PAGE FOR HTML VERSION
+
+{\Large \thetitle: \thesubtitle}
+
+{\large Allen B. Downey}
+
+Version \theversion
+
+\vspace{0.25in}
+
+Copyright 2014 Allen B. Downey
+
+\vspace{0.25in}
+
+Permission is granted to copy, distribute, and/or modify this document
+under the terms of the Creative Commons
+Attribution-NonCommercial-ShareAlike 4.0 International License,
+which is available at
+\url{http://creativecommons.org/licenses/by-nc-sa/4.0/}.
+
+\setcounter{chapter}{-1}
+
+\end{htmlonly}
+
+\fi
+% END OF THE PART WE SKIP FOR PLASTEX
+
+\include{chapters/Preface}
+
+\normalsize
+
+\clearemptydoublepage
+
+% TABLE OF CONTENTS
+\begin{latexonly}
+
+\tableofcontents
+
+\clearemptydoublepage
+
+\end{latexonly}
+
+% START THE BOOK
+\mainmatter
+
+\include{chapters/Signals}
+\include{chapters/Harmonics}
+\include{chapters/nonperiodic}
+\include{chapters/Noise}
+\include{chapters/Autocorrelation}
+\include{chapters/dct}
+\include{chapters/dft}
+\include{chapters/Filtering}
+\include{chapters/diffint}
+\include{chapters/systems}
+\include{chapters/Modulation}
+
+\backmatter
+\printindex
+\end{document}
+
+\end{itemize}

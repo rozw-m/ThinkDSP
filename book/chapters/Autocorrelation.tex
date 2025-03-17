@@ -1,0 +1,520 @@
+\chapter{Autocorrelation}
+
+In the previous chapter I characterized white noise as ``uncorrelated'',
+which means that each value is independent of the others, and Brownian
+noise as ``correlated'', because each value depends on the preceding
+value.  In this chapter I define these terms more precisely and
+present the {\bf autocorrelation function}, which is a useful tool
+for signal analysis.
+
+The code for this chapter is in {\tt chap05.ipynb}, which is in the
+repository for this book (see Section~\ref{code}).
+You can also view it at \url{http://tinyurl.com/thinkdsp05}.
+
+
+\section{Correlation}
+
+In general, correlation between variables means that if you know the
+value of one, you have some information about the other.  There are
+several ways to quantify correlation, but the most common is the
+Pearson product-moment correlation coefficient, usually denoted
+$\rho$.  For two variables, $x$ and $y$, that each contain $N$ values:
+%
+\[ \rho = \frac{ \sum_i (x_i - \mu_x) (y_i - \mu_y)}{N \sigma_x \sigma_y} \]
+%
+Where $\mu_x$ and $\mu_y$ are the means of $x$ and $y$, and
+$\sigma_x$ and $\sigma_y$ are their standard deviations.
+
+Pearson's correlation is always between -1 and +1 (including both).
+If $\rho$ is positive, we say that the correlation is positive,
+which means that when one variable is high, the other tends to be
+high.  If $\rho$ is negative, the correlation is negative, so
+when one variable is high, the other tends to be low.
+
+The magnitude of $\rho$ indicates the strength of the correlation.  If
+$\rho$ is 1 or -1, the variables are perfectly correlated, which means
+that if you know one, you can make a perfect prediction about the
+other.  If $\rho$ is near zero, the correlation is probably weak, so
+if you know one, it doesn't tell you much about the others.
+
+I say ``probably weak'' because it is also possible that there is
+a nonlinear relationship that is not captured by the coefficient
+of correlation.  Nonlinear relationships are often important in
+statistics, but less often relevant for signal processing, so I
+won't say more about them here.
+
+Python provides several ways to compute correlations.  {\tt
+	np.corrcoef} takes any number of variables and computes a {\bf
+	correlation matrix} that includes correlations between each pair of
+variables.
+
+\begin{figure}
+	% autocorr.py
+	\centerline{\includegraphics[height=2.5in]{figs/autocorr1.pdf}}
+	\caption{Two sine waves that differ by a phase offset of 1 radian;
+		their coefficient of correlation is 0.54.}
+	\label{fig.autocorr1}
+\end{figure}
+
+I'll present an example with only two variables.  First, I define
+a function that constructs sine waves with different phase offsets:
+
+\begin{verbatim}
+	def make_sine(offset):
+	signal = thinkdsp.SinSignal(freq=440, offset=offset)
+	wave = signal.make_wave(duration=0.5, framerate=10000)
+	return wave
+\end{verbatim}
+
+Next I instantiate two waves with different offsets:
+
+\begin{verbatim}
+	wave1 = make_sine(offset=0)
+	wave2 = make_sine(offset=1)
+\end{verbatim}
+
+Figure~\ref{fig.autocorr1} shows what the first few periods of these
+waves look like.  When one wave is high, the other is usually high, so we
+expect them to be correlated.
+
+\begin{verbatim}
+	>>> corr_matrix = np.corrcoef(wave1.ys, wave2.ys, ddof=0)
+	[[ 1.    0.54]
+	[ 0.54  1.  ]]
+\end{verbatim}
+
+The option {\tt ddof=0} indicates that {\tt corrcoef} should divide by
+$N$, as in the equation above, rather than use the default, $N-1$.
+
+The result is a correlation matrix:
+the first element is the correlation of {\tt wave1}
+with itself, which is always 1.  Similarly, the last element
+is the correlation of {\tt wave2} with itself.
+
+\begin{figure}
+	% autocorr.py
+	\centerline{\includegraphics[height=2.5in]{figs/autocorr2.pdf}}
+	\caption{The correlation of two sine waves as a function of the
+		phase offset between them.  The result is a cosine.}
+	\label{fig.autocorr2}
+\end{figure}
+
+The off-diagonal elements contain the value we're interested in,
+the correlation of {\tt wave1} and {\tt wave2}.  The value 0.54
+indicates that the strength of the correlation is moderate.
+
+As the phase offset increases, this correlation decreases until
+the waves are 180 degrees out of phase, which yields correlation
+-1.  Then it increases until the offset differs by 360 degrees.
+At that point we have come full circle and the correlation is 1.
+
+Figure~\ref{fig.autocorr2} shows the relationship between correlation and
+phase offset for a sine wave.  The shape of that curve should look
+familiar; it is a cosine.
+
+{\tt thinkdsp} provides a simple interface for computing the
+correlation between waves:
+
+\begin{verbatim}
+	>>> wave1.corr(wave2)
+	0.54
+\end{verbatim}
+
+
+\section{Serial correlation}
+
+Signals often represent measurements of quantities that vary in
+time.  For example, the sound signals we've worked with represent
+measurements of voltage (or current), which correspond to the changes
+in air pressure we perceive as sound.
+
+Measurements like this almost always have serial correlation, which
+is the correlation between each element and the next (or the previous).
+To compute serial correlation, we can shift a signal and then compute
+the correlation of the shifted version with the original.
+
+\begin{verbatim}
+	def serial_corr(wave, lag=1):
+	n = len(wave)
+	y1 = wave.ys[lag:]
+	y2 = wave.ys[:n-lag]
+	corr = np.corrcoef(y1, y2, ddof=0)[0, 1]
+	return corr
+\end{verbatim}
+
+\verb"serial_corr" takes a Wave object and
+{\tt lag}, which is the integer number of places to shift the wave.
+It computes the correlation of the wave with a shifted version
+of itself.
+
+We can test this function with the noise signals from the previous
+chapter.  We expect UU noise to be uncorrelated, based on the
+way it's generated (not to mention the name):
+
+\begin{verbatim}
+	signal = thinkdsp.UncorrelatedGaussianNoise()
+	wave = signal.make_wave(duration=0.5, framerate=11025)
+	serial_corr(wave)
+\end{verbatim}
+
+When I ran this example, I got 0.006, which indicates a very
+small serial correlation.  You might get a different value when you run
+it, but it should be comparably small.
+
+In a Brownian noise signal, each value is the sum of the previous
+value and a random ``step'', so we expect a strong serial
+correlation:
+
+\begin{verbatim}
+	signal = thinkdsp.BrownianNoise()
+	wave = signal.make_wave(duration=0.5, framerate=11025)
+	serial_corr(wave)
+\end{verbatim}
+
+Sure enough, the result I got is greater than 0.999.
+
+\begin{figure}
+	% autocorr.py
+	\centerline{\includegraphics[height=2.5in]{figs/autocorr3.pdf}}
+	\caption{Serial correlation for pink noise with a range of
+		parameters.}
+	\label{fig.autocorr3}
+\end{figure}
+
+Since pink noise is in some sense between Brownian noise and UU noise,
+we might expect an intermediate correlation:
+
+\begin{verbatim}
+	signal = thinkdsp.PinkNoise(beta=1)
+	wave = signal.make_wave(duration=0.5, framerate=11025)
+	serial_corr(wave)
+\end{verbatim}
+
+With parameter $\beta=1$, I got a serial correlation of 0.851.
+As we vary the parameter from $\beta=0$, which is uncorrelated
+noise, to $\beta=2$, which is Brownian, serial correlation
+ranges from 0 to almost 1, as shown in Figure~\ref{fig.autocorr3}.
+
+
+\section{Autocorrelation}
+\label{autopink}
+
+In the previous section we computed the correlation between each
+value and the next, so we shifted the elements of the array by 1.
+But we can easily compute serial correlations with
+different lags.
+
+\begin{figure}
+	% autocorr.py
+	\centerline{\includegraphics[height=2.5in]{figs/autocorr4.pdf}}
+	\caption{Autocorrelation functions for pink noise with a range
+		of parameters.}
+	\label{fig.autocorr4}
+\end{figure}
+
+You can think of \verb"serial_corr" as a function that
+maps from each value of lag to the corresponding correlation, and we
+can evaluate that function by looping through values of {\tt lag}:
+
+\begin{verbatim}
+	def autocorr(wave):
+	lags = range(len(wave.ys)//2)
+	corrs = [serial_corr(wave, lag) for lag in lags]
+	return lags, corrs
+\end{verbatim}
+
+{\tt autocorr} takes a Wave object and returns the autocorrelation
+function as a pair of sequences: {\tt lags} is a sequence of
+integers from 0 to half the length of the wave; {\tt corrs}
+is the sequence of serial correlations for each lag.
+
+Figure~\ref{fig.autocorr4} shows autocorrelation functions for pink
+noise with three values of $\beta$.  For low values of $\beta$, the
+signal is less correlated, and the autocorrelation function drops
+off to zero quickly.  For larger values, serial correlation
+is stronger and drops off more slowly.  With $\beta=1.7$ serial
+correlation is strong even for long lags; this phenomenon is called
+{\bf long-range dependence}, because it indicates that each value in
+the signal depends on many preceding values.
+
+
+\section{Autocorrelation of periodic signals}
+
+The autocorrelation of pink noise has interesting mathematical
+properties, but limited applications.  The autocorrelation of
+periodic signals is more useful.
+
+\begin{figure}
+	% autocorr.py
+	\centerline{\includegraphics[height=2.5in]{figs/autocorr5.pdf}}
+	\caption{Spectrogram of a vocal chirp.}
+	\label{fig.autocorr5}
+\end{figure}
+
+As an example, I downloaded from \url{freesound.org} a recording of
+someone singing a chirp; the repository for this book includes the
+file: \url{28042__bcjordan__voicedownbew.wav}.  You can use the
+Jupyter notebook for this chapter, {\tt chap05.ipynb}, to play it.
+
+Figure~\ref{fig.autocorr5} shows the spectrogram of this wave.
+The fundamental frequency and some of the harmonics show up clearly.
+The chirp starts near 500 Hz and drops down to about 300 Hz, roughly
+from C5 to E4.
+
+\begin{figure}
+	% autocorr.py
+	\centerline{\includegraphics[height=2.5in]{figs/autocorr6.pdf}}
+	\caption{Spectrum of a segment from a vocal chirp.}
+	\label{fig.autocorr6}
+\end{figure}
+
+To estimate pitch at a particular point in time, we could use the
+spectrum, but it doesn't work very well.  To see why not, I'll take
+a short segment from the wave and plot its spectrum:
+
+\begin{verbatim}
+	duration = 0.01
+	segment = wave.segment(start=0.2, duration=duration)
+	spectrum = segment.make_spectrum()
+	spectrum.plot(high=1000)
+\end{verbatim}
+
+This segment starts at 0.2 seconds and lasts 0.01 seconds.
+Figure~\ref{fig.autocorr6} shows its spectrum.  There is a clear peak
+near 400 Hz, but it is hard to identify the pitch precisely.  The
+length of the segment is 441 samples at a framerate of 44100 Hz, so
+the frequency resolution is 100 Hz (see Section~\ref{gabor}).
+That means the estimated pitch might be off by 50 Hz; in musical
+terms, the range from 350 Hz to 450 Hz is about 5 semitones, which is
+a big difference!
+
+We could get better frequency resolution by taking a longer segment,
+but since the pitch is changing over time, we would also get ``motion
+blur''; that is, the peak would spread between the start and end pitch of
+the segment, as we saw in Section~\ref{sauron}.
+
+We can estimate pitch more precisely using autocorrelation.
+If a signal is periodic, we expect the autocorrelation to spike
+when the lag equals the period.
+
+\begin{figure}
+	% autocorr.py
+	\centerline{\includegraphics[height=2.5in]{figs/autocorr7.pdf}}
+	\caption{Two segments from a chirp, one starting 0.0023 seconds
+		after the other.}
+	\label{fig.autocorr7}
+\end{figure}
+
+To show why that works, I'll plot two segments from the same
+recording.
+
+\begin{verbatim}
+	import matplotlib.pyplot as plt
+	
+	def plot_shifted(wave, offset=0.001, start=0.2):
+	segment1 = wave.segment(start=start, duration=0.01)
+	segment1.plot(linewidth=2, alpha=0.8)
+	
+	segment2 = wave.segment(start=start-offset, duration=0.01)
+	segment2.shift(offset)
+	segment2.plot(linewidth=2, alpha=0.4)
+	
+	corr = segment1.corr(segment2)
+	text = r'$\rho =$ %.2g' % corr
+	plt.text(segment1.start+0.0005, -0.8, text)
+	plt.xlabel('Time (s)')
+\end{verbatim}
+
+One segment starts at 0.2 seconds; the other starts 0.0023 seconds
+later.  Figure~\ref{fig.autocorr7} shows the result.  The segments
+are similar, and their correlation is 0.99.  This result suggests
+that the period is near 0.0023 seconds, which corresponds to a frequency
+of 435 Hz.
+
+\begin{figure}
+	% autocorr.py
+	\centerline{\includegraphics[height=2.5in]{figs/autocorr8.pdf}}
+	\caption{Autocorrelation function for a segment from a chirp.}
+	\label{fig.autocorr8}
+\end{figure}
+
+For this example, I estimated the period by trial and error.  To automate
+the process, we can use the autocorrelation function.
+
+\begin{verbatim}
+	lags, corrs = autocorr(segment)
+	plt.plot(lags, corrs)
+\end{verbatim}
+
+Figure~\ref{fig.autocorr8} shows the autocorrelation function for
+the segment starting at $t=0.2$ seconds.  The first peak occurs at
+{\tt lag=101}.  We can compute the frequency that corresponds
+to that period like this:
+
+\begin{verbatim}
+	period = lag / segment.framerate
+	frequency = 1 / period
+\end{verbatim}
+
+The estimated fundamental frequency is 437 Hz.  To evaluate the
+precision of the estimate, we can run the same computation with
+lags 100 and 102, which correspond to frequencies 432 and 441 Hz.
+The frequency precision using autocorrelation is less than 10 Hz,
+compared with 100 Hz using the spectrum.  In musical terms, the
+expected error is about 30 cents (a third of a semitone).
+
+
+\section{Correlation as dot product}
+\label{dotproduct}
+
+I started the chapter with this definition of Pearson's
+correlation coefficient:
+%
+\[ \rho = \frac{ \sum_i (x_i - \mu_x) (y_i - \mu_y)}{N \sigma_x \sigma_y} \]
+%
+Then I used $\rho$ to define serial correlation and autocorrelation.
+That's consistent with how these terms are used in statistics,
+but in the context of signal processing, the definitions are
+a little different.
+
+In signal processing, we are often working with unbiased signals,
+where the mean is 0, and normalized signals, where the standard
+deviation is 1.  In that case, the definition of $\rho$ simplifies to:
+%
+\[ \rho = \frac{1}{N} \sum_i x_i y_i \]
+%
+And it is common to simplify even further:
+%
+\[ r = \sum_i x_i y_i \]
+%
+This definition of correlation is not ``standardized'', so it doesn't
+generally fall between -1 and 1.  But it has other useful properties.
+
+If you think of $x$ and $y$ as vectors, you might recognize this
+formula as the {\bf dot product}, $x \cdot y$.  See
+\url{http://en.wikipedia.org/wiki/Dot_product}.
+
+\newcommand{\norm}{\mathrm{norm}}
+
+The dot product indicates the degree to which the signals are similar.
+If they are normalized so their standard deviations are 1,
+%
+\[ x \cdot y = \cos \theta \]
+%
+where $\theta$ is the angle between the vectors.  And that explains
+why Figure~\ref{fig.autocorr2} is a cosine curve.
+
+
+\section{Using NumPy}
+\label{correlate}
+
+\begin{figure}
+	% autocorr.py
+	\centerline{\includegraphics[height=2.5in]{figs/autocorr9.pdf}}
+	\caption{Autocorrelation function computed with {\tt np.correlate}.}
+	\label{fig.autocorr9}
+\end{figure}
+
+NumPy provides a function, {\tt correlate}, that computes
+the correlation of two functions or the autocorrelation of one
+function.  We can use it to compute the autocorrelation of
+the segment from the previous section:
+
+\begin{verbatim}
+	corrs2 = np.correlate(segment.ys, segment.ys, mode='same')
+\end{verbatim}
+
+The option {\tt mode} tells {\tt correlate} what range
+of {\tt lag} to use.  With the value {\tt 'same'}, the
+range is from $-N/2$ to $N/2$, where $N$ is the length of the
+wave array.
+
+Figure~\ref{fig.autocorr9} shows the result.  It is symmetric because
+the two signals are identical, so a negative lag on one has the same
+effect as a positive lag on the other.  To compare with the results
+from {\tt autocorr}, we can select the second half:
+
+\begin{verbatim}
+	N = len(corrs2)
+	half = corrs2[N//2:]
+\end{verbatim}
+
+If you compare Figure~\ref{fig.autocorr9} to Figure~\ref{fig.autocorr8},
+you'll notice that the correlations computed by {\tt np.correlate}
+get smaller as the lags increase.  That's because {\tt np.correlate}
+uses the unstandardized definition of correlation;
+as the lag gets bigger, the
+overlap between the two signals gets smaller, so the magnitude of
+the correlations decreases.
+
+We can correct that by dividing through by the lengths:
+
+\begin{verbatim}
+	lengths = range(N, N//2, -1)
+	half /= lengths
+\end{verbatim}
+
+Finally, we can standardize the results so the correlation with
+{\tt lag=0} is 1.
+
+\begin{verbatim}
+	half /= half[0]
+\end{verbatim}
+
+With these adjustments, the results computed by {\tt autocorr} and
+{\tt np.correlate} are nearly the same.  They still differ by
+1-2\%.  The reason is not important, but if you are curious: {\tt autocorr}
+standardizes the correlations independently for each lag; for
+{\tt np.correlate}, we standardized them all at the end.
+
+More importantly, now you know what autocorrelation is, how to
+use it to estimate the fundamental period of a signal, and two
+ways to compute it.
+
+
+\section{Exercises}
+
+Solutions to these exercises are in {\tt chap05soln.ipynb}.
+
+\begin{exercise}
+	The Jupyter notebook for this chapter, {\tt chap05.ipynb}, includes
+	an interaction that lets you compute autocorrelations for different
+	lags.  Use this interaction to estimate the pitch of the vocal chirp
+	for a few different start times.
+\end{exercise}
+
+
+\begin{exercise}
+	The example code in \verb"chap05.ipynb" shows how to use autocorrelation
+	to estimate the fundamental frequency of a periodic signal.
+	Encapsulate this code in a function called \verb"estimate_fundamental",
+	and use it to track the pitch of a recorded sound.
+	
+	To see how well it works, try superimposing your pitch estimates on a
+	spectrogram of the recording.
+\end{exercise}
+
+
+\begin{exercise}
+	If you did the exercises in the previous chapter, you downloaded
+	the historical price of BitCoins and estimated the power spectrum
+	of the price changes.  Using the same data, compute the autocorrelation
+	of BitCoin prices.  Does the autocorrelation function drop off quickly?
+	Is there evidence of periodic behavior?
+\end{exercise}
+
+
+\begin{exercise}
+	In the repository for this book you will find a Jupyter notebook
+	called \verb"saxophone.ipynb" that explores autocorrelation,
+	pitch perception, and a phenomenon called the {\bf missing fundamental}.
+	Read through this notebook and run the examples.  Try selecting
+	a different segment of the recording and running the examples again.
+	
+	Vi Hart has an excellent video called ``What is up with Noises? (The
+	Science and Mathematics of Sound, Frequency, and Pitch)''; it
+	demonstrates the missing fundamental phenomenon and explains how pitch
+	perception works (at least, to the degree that we know).  Watch it at
+	\url{https://www.youtube.com/watch?v=i_0DXxNeaQ0}.
+	
+\end{exercise}
